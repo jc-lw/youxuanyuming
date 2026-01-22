@@ -4,15 +4,16 @@ on:
   schedule:
     - cron: '*/30 * * * *'  # 每隔三十分钟运行一次
   workflow_dispatch:  # 手动触发
- # push: # 允许提交触发
+  # push: # 允许提交触发
 
 jobs:
-
   update-ip-list:
     runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # 获取完整的历史记录
       
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -25,17 +26,48 @@ jobs:
         pip install requests
         pip install beautifulsoup4
         
+    - name: List files before script
+      run: |
+        echo "当前目录文件列表:"
+        ls -la
+        echo "---"
+        
     - name: Run script
-      run: python ${{ github.workspace }}/collect_ips.py
+      run: |
+        python collect_ips.py
+        echo "脚本执行完成，检查ip.txt:"
+        if [ -f "ip.txt" ]; then
+          echo "ip.txt存在，内容前10行:"
+          head -10 ip.txt
+          echo "文件行数:"
+          wc -l ip.txt
+        else
+          echo "ip.txt不存在!"
+        fi
+        
+    - name: Show git status
+      run: |
+        echo "Git状态:"
+        git status
+        echo "---"
+        echo "Git diff:"
+        git diff --name-only
         
     - name: Commit and push changes
       run: |
-        git config --global user.email "baolw50@gmail.com"
-        git config --global user.name "jc-lw"
-        if [ -n "$(git status --porcelain)" ]; then
+        git config --global user.email "o.osilhouette@gmail.com"
+        git config --global user.name "KAUIN"
+        git config --global pull.rebase false
+        
+        # 拉取最新更改，避免冲突
+        git pull origin main
+        
+        if [ -n "$(git status --porcelain ip.txt)" ]; then
+          echo "检测到ip.txt有变化"
           git add ip.txt
-          git commit -m "Automatic update"
-          git push
+          git commit -m "Automatic update: $(date '+%Y-%m-%d %H:%M:%S')"
+          git push origin main
+          echo "已提交并推送更改"
         else
-          echo "No changes detected, skipping commit."
+          echo "ip.txt没有变化，跳过提交"
         fi
